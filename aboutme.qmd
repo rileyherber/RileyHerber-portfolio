@@ -3,7 +3,7 @@ title: "About me"
 ---
 
 # About Me
-
+![] (image0.jpeg)
 Hello! My name is **Riley Herber**, and I am a Bioinformatics Masters student at the University of Georgia. I graduated from UGA is a BS in Biochemistry and Molecular Biology and enrolled into the Double Dawgs program.
 
 ## Background
