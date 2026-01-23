@@ -137,3 +137,101 @@ summary(fit2) #prints results of fir1
 ```
 
 Unlike infant mortality, population size does not appear to have a meaningful effect on life expectancy (p-value: 0.6159). R-squares = 0.005 means only 0.05% of the variation in life expectancy is explained by population.
+
+## This section contributed by Nalany Richardson
+
+I chose ml-latest-small dataset from dslabs to see how movies and their IMBD ratings were related.
+
+```{r}
+# Set up packages for data and upload excel files if needed 
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+# Open excel files from project folder (ml-latest-small is the original name from the dslabs repository). 
+movies  <- read_excel("../ml-latest-small/movies.xlsx")
+ratings <- read_excel("../ml-latest-small/ratings.xlsx")
+tags <- read_excel("../ml-latest-small/tags.xlsx")
+```
+
+```{r}
+# Explore the data with str and create summary of data files
+str(movies)
+str(ratings)
+str(tags)
+summary(movies)
+summary(ratings)
+summary(tags)
+# make movies summary from ratings
+movie_summary <- ratings %>%
+  filter(!is.na(rating)) %>%
+  group_by(movieId) %>%
+  summarise(
+    avg_rating = mean(rating),
+    n_ratings  = n(),
+    .groups = "drop"
+  )
+```
+
+```{r}
+# Converted from .csv to .xlsx which created spaces in column. Run trimws to fix.
+names(movies)  <- trimws(names(movies))
+names(ratings) <- trimws(names(ratings))
+# Remove any missing ratings
+ratings_clean <- ratings %>%
+  filter(!is.na(rating))
+# Process and join movie and rating data
+ratings_clean <- ratings %>%
+  filter(!is.na(rating))
+# Reinspect cleaned data
+str(ratings_clean)
+summary(ratings_clean$rating)
+```
+
+```{r}
+# Plot average rating vs number of ratings
+ggplot(movie_summary, aes(x = n_ratings, y = avg_rating)) +
+  geom_point(alpha = 0.4) +
+  scale_x_log10() +
+  labs(
+    title = "Average rating vs number of ratings (by movieId)",
+    x = "Number of ratings (log scale)",
+    y = "Average rating"
+  ) +
+  theme_minimal()
+```
+
+### Interpretation
+
+Movies were summarized using average user ratings and the total number of ratings/movie. This plot aims to show the relationship between 'popularity' (number of ratings) and level of rating (1- worst and 5- best rating). *As the number of reviews goes up, it appears that the average rating also increases.*
+
+```{r}
+# Now we'll make a simple fit model. But first, we need to fix column names in 'tags' and make sure the movieId types match (some data points are misaligned).
+names(tags)[1:4] <- c("userId", "movieId", "tag", "timestamp")
+tags$movieId <- as.numeric(tags$movieId)
+# Create movie average rating
+movie_summary <- ratings %>%
+  filter(!is.na(rating)) %>%
+  group_by(movieId) %>%
+  summarise(avg_rating = mean(rating), .groups = "drop")
+# Let's do 'funny' tagged movies and see what happens...
+test_tag <- "funny"
+# Don't forget to make an indicator. AI was used to figure out this step and deploy the code.
+tag_indicator <- tags %>%
+  filter(tag == test_tag) %>%
+  distinct(movieId) %>%
+  mutate(has_tag = 1)
+# NOW we can combine the data and create fit model
+# Do movies tagged as 'funny' have different average ratings than movies without the tag? AI was used to discover how to use left_join
+tag_df <- movie_summary %>%
+  left_join(tag_indicator, by = "movieId") %>%
+  mutate(has_tag = ifelse(is.na(has_tag), 0, has_tag))
+
+fit_tag <- lm(avg_rating ~ has_tag, data = tag_df)
+summary(fit_tag)
+```
+
+## Interpretation of fit model
+
+A simple linear regression was used to examine whether the presence of the tag “funny” (ascribed by users) was associated with low, average, or higher movie ratings than non-'funny' movies.. Movies tagged as “funny” had significantly higher average ratings compared to movies without this tag (**β = 0.43, p = 0.0253**). Funny movies average a rating of 3.69 compared to their unfunny counterparts at 3.26. While the model only explains a small proportion of total variation in ratings (**R2 = 0.0005**), there does appear to be a significant relationship here. This was a fun analysis, and I was surprised that funnier movies actually had a positive impact on user rating.
