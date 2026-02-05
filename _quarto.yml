@@ -18,7 +18,7 @@ website:
             file: data-exercise\data-exercise.qmd
     right:
       - icon: github 
-        href: ./https://github.com/rileyherber/RileyHerber-portfolio       
+        href: https://github.com/rileyherber/RileyHerber-portfolio       
 format:
   html:
     theme: minty
