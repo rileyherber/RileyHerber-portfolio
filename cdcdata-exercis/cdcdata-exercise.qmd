@@ -1,0 +1,176 @@
+# CDC Provisional Percent of Deaths for COVID-19, Influenza, and RSV by Select Characteristics Data Processing Exercise
+
+This dataset contains the provisional percent of total deaths by week for COVID-19, Influenza, and Respiratory Syncytial Virus for deaths occurring among residents in the United States, by sex, age group, and race and Hispanic origin.This dataset was taken from the CDC website and can be found at the following link.
+
+Link: https://data.cdc.gov/National-Center-for-Health-Statistics/Provisional-Percent-of-Deaths-for-COVID-19-Influen/53g5-jf7x/about_data
+
+
+The clean dataset has 8 columns/variables:
+
+    * year: a numerical value denoting a year between 2018-2025
+    * weekending_date: date of the weekend of the week the data was recorded for
+    * demographic_type: demographic type has been processes to only include Age Group
+    * demographic_value: text denoting what age group that data is for (0-17 years, 18-64 years, 65+ years)
+    * pathogen: RVS, COVID-19, Influenza, or Combined
+    * deaths: number of deaths involving pathogen for that week for that age group
+    * total_deaths: deaths from all causes of death
+
+# Clean Data
+```{r}
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(dplyr)
+
+#AI tools were used to help understand the mutate funciton
+
+#Read and clean data
+#Removing any commas in the numbers and fixing any null values by replacing them with zero
+
+data_clean <- read_csv("Provisional_Percent_of_Deaths_for_COVID-19,_Influenza,_and_RSV_by_Select_Characteristics_20260210.csv") %>%
+  mutate(
+    deaths = as.numeric(gsub(",", "", deaths)),
+    total_deaths = as.numeric(gsub(",", "", total_deaths)),
+    weekending_date = ymd(weekending_date)
+  ) %>%
+  replace_na(list(deaths = 0))
+
+#Removing additional columns to simplify analysis
+data_clean <- data_clean %>% select(-data_as_of, -start_date, -end_date, -group,-month, -state, -mmwr_week, -provisional, -suppressed, -percent_deaths)
+
+#Removing rows that calculate other demographic groups outside of Age Group
+data_clean <- data_clean %>%
+  filter(grepl("Age Group", demographic_type))
+```
+
+# Plotting
+```{r}
+#AI tools were also used to clean up graphs
+
+# Time Series - Weekly Deaths by Pathogen
+data_clean %>%
+  filter(pathogen != "Combined") %>%
+  group_by(weekending_date, pathogen) %>%
+  summarise(total_deaths = sum(deaths, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = weekending_date, y = total_deaths, color = pathogen)) +
+  geom_line(linewidth = 0.8) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_color_brewer(palette = "Set1") +
+  theme_minimal() +
+  labs(
+    title = "Weekly Deaths Over Time by Pathogen (2018-2026)",
+    subtitle = "Time series showing the progression of deaths from COVID-19, Influenza, and RSV",
+    x = "Week Ending Date",
+    y = "Total Deaths",
+    color = "Pathogen"
+  ) +
+  theme(
+    text = element_text(size = 12),
+    legend.position = "bottom"
+  )
+
+# Yearly Comparison - Total Deaths by Pathogen
+data_clean %>%
+  filter(pathogen != "Combined", year >= 2020) %>%
+  group_by(year, pathogen) %>%
+  summarise(total_deaths = sum(deaths, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = factor(year), y = total_deaths, fill = pathogen)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_y_continuous(labels = label_comma()) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal() +
+  labs(
+    title = "Annual Deaths by Pathogen (2020-2026)",
+    subtitle = "Comparing total deaths across COVID-19, Influenza, and RSV",
+    x = "Year",
+    y = "Total Deaths",
+    fill = "Pathogen"
+  ) +
+  theme(text = element_text(size = 12))
+
+# Age Group Distribution - Stacked Proportions
+data_clean %>%
+  filter(pathogen != "Combined", demographic_type == "Age Group", year == 2025) %>%
+  group_by(pathogen, demographic_values) %>%
+  summarise(total_deaths = sum(deaths, na.rm = TRUE), .groups = "drop") %>%
+  group_by(pathogen) %>%
+  mutate(proportion = total_deaths / sum(total_deaths)) %>%
+  ggplot(aes(x = pathogen, y = proportion, fill = demographic_values)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = percent_format()) +
+  scale_fill_brewer(palette = "Set3") +
+  theme_minimal() +
+  labs(
+    title = "Age Distribution of Deaths by Pathogen (2025)",
+    subtitle = "Proportional breakdown showing which age groups are most affected",
+    x = "Pathogen",
+    y = "Proportion of Deaths",
+    fill = "Age Group"
+  ) +
+  theme(text = element_text(size = 12))
+
+# COVID-19 Focus - Timeline by Age Group
+data_clean %>%
+  filter(pathogen == "COVID-19",
+         demographic_type == "Age Group",
+         year >= 2020) %>%
+  group_by(weekending_date, demographic_values) %>%
+  summarise(total_deaths = sum(deaths, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = weekending_date, y = total_deaths, color = demographic_values)) +
+  geom_line(linewidth = 1) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_color_brewer(palette = "Dark2") +
+  theme_minimal() +
+  labs(
+    title = "COVID-19 Deaths Over Time by Age Group",
+    subtitle = "Weekly trends showing differential impact across age groups",
+    x = "Week Ending Date",
+    y = "Total Deaths",
+    color = "Age Group"
+  ) +
+  theme(
+    text = element_text(size = 12),
+    legend.position = "bottom"
+  )
+
+# Recent Trends - Last 12 Months
+data_clean %>%
+  filter(pathogen != "Combined",
+         weekending_date >= max(weekending_date) - months(12)) %>%
+  group_by(weekending_date, pathogen) %>%
+  summarise(total_deaths = sum(deaths, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = weekending_date, y = total_deaths, color = pathogen, fill = pathogen)) +
+  geom_line(linewidth = 1) +
+  geom_area(alpha = 0.3) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_color_brewer(palette = "Set1") +
+  scale_fill_brewer(palette = "Set1") +
+  theme_minimal() +
+  labs(
+    title = "Recent Trends: Last 12 Months",
+    subtitle = "Current state of respiratory disease mortality",
+    x = "Week Ending Date",
+    y = "Total Deaths",
+    color = "Pathogen",
+    fill = "Pathogen"
+  ) +
+  theme(
+    text = element_text(size = 12),
+    legend.position = "bottom"
+  )
+
+# Summary Statistics
+data_clean %>%
+  filter(pathogen != "Combined", year >= 2020) %>%
+  group_by(pathogen) %>%
+  summarise(
+    Total_Deaths = sum(deaths, na.rm = TRUE),
+    Mean_Weekly_Deaths = mean(deaths, na.rm = TRUE),
+    Max_Weekly_Deaths = max(deaths, na.rm = TRUE),
+    Min_Weekly_Deaths = min(deaths, na.rm = TRUE)
+  ) %>%
+  arrange(desc(Total_Deaths)) %>%
+  print()
+```
+
+Based on these exploritory plots, the mass majority of pathogen deaths consist of the 65+ year old demographic, including a disproportionally large spike in 2020-2022. COVID-19 deaths are on average higher than those caused by RVS and Influenza. COVID-19 had a very large spike in 2021 and has decreased since then. 

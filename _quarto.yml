@@ -16,6 +16,8 @@ website:
             file: ready-exercise/ready-exercise.html
           - text: "Synthetic Data Exercise"
             file: data-exercise\data-exercise.qmd
+          - text: "Data Analysis Exercise"
+            file: cdcdata-exercis\cdcdata-exercise.qmd
     right:
       - icon: github 
         href: https://github.com/rileyherber/RileyHerber-portfolio       
