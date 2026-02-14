@@ -5,13 +5,13 @@ This dataset contains the provisional percent of total deaths by week for COVID-
 Link: https://data.cdc.gov/National-Center-for-Health-Statistics/Provisional-Percent-of-Deaths-for-COVID-19-Influen/53g5-jf7x/about_data
 
 
-The clean dataset has 8 columns/variables:
+The clean dataset has 7 columns/variables:
 
     * year: a numerical value denoting a year between 2018-2025
     * weekending_date: date of the weekend of the week the data was recorded for
     * demographic_type: demographic type has been processes to only include Age Group
-    * demographic_value: text denoting what age group that data is for (0-17 years, 18-64 years, 65+ years)
-    * pathogen: RVS, COVID-19, Influenza, or Combined
+    * demographic_values: text denoting what age group that data is for (0-17 years, 18-64 years, 65+ years)
+    * pathogen: RSV, COVID-19, Influenza, or Combined
     * deaths: number of deaths involving pathogen for that week for that age group
     * total_deaths: deaths from all causes of death
 
@@ -22,7 +22,7 @@ library(scales)
 library(lubridate)
 library(dplyr)
 
-#AI tools were used to help understand the mutate funciton
+#AI tools were used to help understand the mutate function
 
 #Read and clean data
 #Removing any commas in the numbers and fixing any null values by replacing them with zero
@@ -41,6 +41,10 @@ data_clean <- data_clean %>% select(-data_as_of, -start_date, -end_date, -group,
 #Removing rows that calculate other demographic groups outside of Age Group
 data_clean <- data_clean %>%
   filter(grepl("Age Group", demographic_type))
+```
+
+```{r}
+names(data_clean) 
 ```
 
 # Plotting
@@ -173,4 +177,91 @@ data_clean %>%
   print()
 ```
 
-Based on these exploritory plots, the mass majority of pathogen deaths consist of the 65+ year old demographic, including a disproportionally large spike in 2020-2022. COVID-19 deaths are on average higher than those caused by RVS and Influenza. COVID-19 had a very large spike in 2021 and has decreased since then. 
+Based on these exploritory plots, the mass majority of pathogen deaths consist of the 65+ year old demographic, including a disproportionally large spike in 2020-2022. COVID-19 deaths are on average higher than those caused by RSV and Influenza. COVID-19 had a very large spike in 2021 and has decreased since then. 
+
+## Synthetic Data (Alex)
+
+This section contributed by Alex Tejada-Strop.
+
+I generated a synthetic dataset with the same structure as the cleaned dataset (`data_clean`). 
+Categorical variables were sampled using the same proportions as the original data, and numeric 
+death counts were simulated using a Poisson-based approach based on the original averages. 
+The synthetic data should look similar overall but will not match exactly because it is randomly generated.
+
+```{r}
+
+# AI was used for guidance in structuring synthetic data generation and troubleshooting minor coding errors.
+
+set.seed(123)
+
+orig <- data_clean
+n <- nrow(orig)
+
+# Helper function to sample categorical variables
+sample_like <- function(x, size) {
+  probs <- prop.table(table(x))
+  sample(names(probs), size = size, replace = TRUE, prob = as.numeric(probs))
+}
+
+# Helper function for count-style numeric variables
+make_counts <- function(x, size) {
+  mu <- mean(x, na.rm = TRUE)
+  mu <- ifelse(is.na(mu) || mu < 0.1, 1, mu)
+  rpois(size, lambda = mu)
+}
+
+syn <- tibble(
+  year = sample_like(orig$year, n),
+  weekending_date = sample(orig$weekending_date, n, replace = TRUE),
+  demographic_type = sample_like(orig$demographic_type, n),
+  demographic_values = sample_like(orig$demographic_values, n),
+  pathogen = sample_like(orig$pathogen, n),
+  deaths = make_counts(orig$deaths, n),
+  total_deaths = make_counts(orig$total_deaths, n)
+) %>%
+  mutate(total_deaths = pmax(total_deaths, deaths))
+
+glimpse(syn)
+```
+
+```{r}
+# --- Compare Original vs Synthetic ---
+
+# Numeric comparison
+orig %>%
+  summarise(
+    mean_deaths = mean(deaths, na.rm = TRUE),
+    sd_deaths = sd(deaths, na.rm = TRUE),
+    mean_total = mean(total_deaths, na.rm = TRUE),
+    sd_total = sd(total_deaths, na.rm = TRUE)
+  )
+
+syn %>%
+  summarise(
+    mean_deaths = mean(deaths, na.rm = TRUE),
+    sd_deaths = sd(deaths, na.rm = TRUE),
+    mean_total = mean(total_deaths, na.rm = TRUE),
+    sd_total = sd(total_deaths, na.rm = TRUE)
+  )
+
+# Pathogen proportions
+orig %>% count(pathogen) %>% mutate(pct = n / sum(n))
+syn %>% count(pathogen) %>% mutate(pct = n / sum(n))
+```
+
+```{r}
+# --- Synthetic Weekly Deaths by Pathogen ---
+
+syn %>%
+  filter(pathogen != "Combined") %>%
+  group_by(weekending_date, pathogen) %>%
+  summarise(total_deaths = sum(deaths), .groups = "drop") %>%
+  ggplot(aes(x = weekending_date, y = total_deaths, color = pathogen)) +
+  geom_line(linewidth = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "Synthetic Weekly Deaths Over Time by Pathogen",
+    x = "Week Ending Date",
+    y = "Total Deaths"
+  )
+```
