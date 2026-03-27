@@ -424,3 +424,55 @@ collect_metrics(cv_model2)
 
 ## What changed?
 We see that the RMSE values increased slightly for both models. Previously, Model 1 had a training RMSE of approximately 702, and Model 2 had about 627; after cross-validation, Model 1’s mean RMSE rose to 691 and Model 2’s to 646. This change is expected because cross-validation evaluates each model on subsets of data that were not used for fitting, giving a more realistic estimate of performance on unseen data. What did not change is the overall pattern of model performance: Model 2 still performs best, followed by Model 1, while both continue to outperform the null model.
+
+
+#This section added by Esther Palmer
+
+plot predicted vs. observed values
+```{r}
+p1 <- pred1 %>% ggplot(aes(x=Y, y=.pred)) + geom_point() +ggtitle("Dose as predictor")
+p1
+
+p2 <- pred2 %>% ggplot(aes(x=Y, y=.pred)) + geom_point() +ggtitle("All predictors")
+p2
+
+df1 <- merge(pred1, pred2, by="Y")
+df2<- merge(df1, null_pred, by = "Y")
+df3 <- df2 %>% select(Y, .pred.x, .pred.y, .pred)
+
+df3 <- df3 %>% rename(
+  pred1 = .pred.x,
+  pred2 = .pred.y,
+  nullpred = .pred
+)
+
+p3 <- df3 %>% ggplot(aes(x=Y)) + geom_point(aes(y=pred1, color="dose only")) + geom_point(aes(y=pred2, color="all predictors")) + geom_point(aes(y=nullpred, color="null"))
+p3
+```
+
+bootstraps
+```{r}
+set.seed(rngseed)
+pred_bs <- matrix(NA, nrow=100, ncol=90)
+
+bs_data <- train_data %>% bootstraps(times = 100)
+
+for (i in 1:100) {
+  dat_sample = rsample::analysis(bs_data$splits[[i]])
+  fit_bs <- lm(Y ~ DOSE + AGE + SEX + WT + HT, data=dat_sample)
+  pred_bs[i, ] <- predict(fit_bs, newdata=train_data)
+}
+```
+
+
+confidence intervals and figure
+observed values (Y) x axis, predictions on Y (pred2) with confidence intervals
+```{r}
+preds <- pred_bs |> apply(2, quantile,  c(0.055, 0.5, 0.945)) |>  t()
+
+df4 <- data.frame(X=df3$Y, Y=df3$pred2, low=preds[,1], med=preds[,2], upp=preds[,3])
+
+final_plot <- df4 %>% ggplot(aes(x=X, y=Y)) + geom_point() + geom_errorbar(aes(ymin=low, ymax=upp)) + geom_abline(slope=1)
+final_plot
+```
+I'm not entirely sure this went correctly, as the error bars don't overlap with the dots? however things do seem to kinda congregate around the line.
