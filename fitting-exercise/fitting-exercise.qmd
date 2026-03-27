@@ -11,7 +11,7 @@ library(dplyr)
 library(tidyverse)
 library(tidymodels)
 
-mavoglurant <- read.csv("fitting-exercise/Mavoglurant_A2121_nmpk.csv")
+mavoglurant <- read.csv("Mavoglurant_A2121_nmpk.csv")
 ```
 
 # Data Exploration
@@ -426,7 +426,7 @@ collect_metrics(cv_model2)
 We see that the RMSE values increased slightly for both models. Previously, Model 1 had a training RMSE of approximately 702, and Model 2 had about 627; after cross-validation, Model 1’s mean RMSE rose to 691 and Model 2’s to 646. This change is expected because cross-validation evaluates each model on subsets of data that were not used for fitting, giving a more realistic estimate of performance on unseen data. What did not change is the overall pattern of model performance: Model 2 still performs best, followed by Model 1, while both continue to outperform the null model.
 
 
-#This section added by Esther Palmer
+# This section added by Esther Palmer
 
 plot predicted vs. observed values
 ```{r}
@@ -476,3 +476,41 @@ final_plot <- df4 %>% ggplot(aes(x=X, y=Y)) + geom_point() + geom_errorbar(aes(y
 final_plot
 ```
 I'm not entirely sure this went correctly, as the error bars don't overlap with the dots? however things do seem to kinda congregate around the line.
+
+# Part 3
+
+```{r}
+pred_test <- predict(fit_model2, test_data) %>%
+  bind_cols(test_data) %>%
+  mutate(dataset = "Test")
+
+pred_train <- pred2 %>%
+  mutate(dataset = "Train")
+
+# Combine train and test predictions
+pred_all <- bind_rows(pred_train, pred_test)
+
+# Plot predicted vs observed for both datasets
+ggplot(pred_all, aes(x = Y, y = .pred, color = dataset, shape = dataset)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  labs(
+    title = "Predicted vs Observed Total Drug (Y)",
+    x = "Observed Y",
+    y = "Predicted Y",
+    color = "Dataset",
+    shape = "Dataset"
+  ) +
+  theme_minimal() +
+  scale_color_manual(values = c("Train" = "blue", "Test" = "red")) +
+  scale_shape_manual(values = c("Train" = 16, "Test" = 17))
+```
+
+1. Does any model perform better than the null model?
+Yes, both Model 1 (dose only) and Model 2 (all predictors) perform better than the null model. The null model simply predicts the mean total drug exposure (Y) for all individuals, resulting in a high RMSE (945) and no ability to explain variability. By comparison, including dose alone or dose with demographic predictors reduces RMSE significantly and increases R-squared, demonstrating that both models capture variations in the data and outperform a null baseline.
+
+2. Does Model 1 with only dose improve results over the null model?
+Model 1 clearly improves performance over the null model. The training RMSE drops to 702, and R-squared reaches 0.52, indicating that dose alone explains about half of the variability in total drug exposure. While the model captures the main signal in the data, it ignores demographic differences and residual variability, so it would provide reasonable but not highly precise predictions for individual patients. It is “usable” for rough estimates or exploratory analyses but limited for detailed dosing decisions.
+
+3. Does Model 2 with all predictors further improve results?
+Model 2 incorporates dose, age, sex, weight, and height, resulting in modest further improvement over Model 1. RMSE decreases to 627, and R-squared increases to 0.62, indicating that demographic factors explain some additional variability in Y, though dose remains dominant. The results make sense given that the EDA showed weak correlations between Y and demographics. The model generalizes well to the test data, as predictions for unseen individuals overlap with training data and cluster around the 45 degree line, suggesting minimal overfitting. Model 2 is more precise than Model 1 and can be considered usable for research-level predictions, though residual variability remains, limiting its precision for patient-level dosing.
