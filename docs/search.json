@@ -215,5 +215,75 @@
     "title": "Model Fitting Exercise",
     "section": "What changed?",
     "text": "What changed?\nWe see that the RMSE values increased slightly for both models. Previously, Model 1 had a training RMSE of approximately 702, and Model 2 had about 627; after cross-validation, Model 1’s mean RMSE rose to 691 and Model 2’s to 646. This change is expected because cross-validation evaluates each model on subsets of data that were not used for fitting, giving a more realistic estimate of performance on unseen data. What did not change is the overall pattern of model performance: Model 2 still performs best, followed by Model 1, while both continue to outperform the null model."
+  },
+  {
+    "objectID": "ml-models-exercise/ml-models-exercise.html",
+    "href": "ml-models-exercise/ml-models-exercise.html",
+    "title": "Module 11 Exercise",
+    "section": "",
+    "text": "library(tidymodels)\n\nWarning: package 'tidymodels' was built under R version 4.4.3\n\n\n── Attaching packages ────────────────────────────────────── tidymodels 1.4.1 ──\n\n\n✔ broom        1.0.11     ✔ recipes      1.3.1 \n✔ dials        1.4.2      ✔ rsample      1.3.1 \n✔ dplyr        1.1.4      ✔ tailor       0.1.0 \n✔ ggplot2      4.0.2      ✔ tidyr        1.3.1 \n✔ infer        1.1.0      ✔ tune         2.0.1 \n✔ modeldata    1.5.1      ✔ workflows    1.3.0 \n✔ parsnip      1.4.1      ✔ workflowsets 1.1.1 \n✔ purrr        1.0.4      ✔ yardstick    1.3.2 \n\n\nWarning: package 'broom' was built under R version 4.4.3\n\n\nWarning: package 'dials' was built under R version 4.4.3\n\n\nWarning: package 'scales' was built under R version 4.4.3\n\n\nWarning: package 'ggplot2' was built under R version 4.4.3\n\n\nWarning: package 'infer' was built under R version 4.4.3\n\n\nWarning: package 'modeldata' was built under R version 4.4.3\n\n\nWarning: package 'parsnip' was built under R version 4.4.3\n\n\nWarning: package 'recipes' was built under R version 4.4.3\n\n\nWarning: package 'rsample' was built under R version 4.4.3\n\n\nWarning: package 'tailor' was built under R version 4.4.3\n\n\nWarning: package 'tune' was built under R version 4.4.3\n\n\nWarning: package 'workflows' was built under R version 4.4.3\n\n\nWarning: package 'workflowsets' was built under R version 4.4.3\n\n\nWarning: package 'yardstick' was built under R version 4.4.3\n\n\n── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──\n✖ purrr::discard() masks scales::discard()\n✖ dplyr::filter()  masks stats::filter()\n✖ dplyr::lag()     masks stats::lag()\n✖ recipes::step()  masks stats::step()\n\nlibrary(ggplot2)\nlibrary(GGally)\n\nWarning: package 'GGally' was built under R version 4.4.3\n\nlibrary(dplyr)\nlibrary(glmnet)\n\nWarning: package 'glmnet' was built under R version 4.4.3\n\n\nLoading required package: Matrix\n\n\nWarning: package 'Matrix' was built under R version 4.4.3\n\n\n\nAttaching package: 'Matrix'\n\n\nThe following objects are masked from 'package:tidyr':\n\n    expand, pack, unpack\n\n\nLoaded glmnet 4.1-10\n\nlibrary(ranger)\n\nWarning: package 'ranger' was built under R version 4.4.3\n\nset.seed(1234)\n\n\nmavo_clean &lt;- readRDS(\"mavo_clean.rds\")"
+  },
+  {
+    "objectID": "ml-models-exercise/ml-models-exercise.html#pairwise-correlations",
+    "href": "ml-models-exercise/ml-models-exercise.html#pairwise-correlations",
+    "title": "Module 11 Exercise",
+    "section": "Pairwise Correlations",
+    "text": "Pairwise Correlations\n\n# Select only continuous variables\ncontinuous_vars &lt;- mavo_clean %&gt;% select(where(is.numeric))\n\n# Pairwise correlation plot\nggpairs(continuous_vars)"
+  },
+  {
+    "objectID": "ml-models-exercise/ml-models-exercise.html#feature-engineering",
+    "href": "ml-models-exercise/ml-models-exercise.html#feature-engineering",
+    "title": "Module 11 Exercise",
+    "section": "Feature Engineering",
+    "text": "Feature Engineering\n\nmavo_clean$BMI &lt;- mavo_clean$WT / (mavo_clean$HT^2)"
+  },
+  {
+    "objectID": "ml-models-exercise/ml-models-exercise.html#rmse",
+    "href": "ml-models-exercise/ml-models-exercise.html#rmse",
+    "title": "Module 11 Exercise",
+    "section": "RMSE",
+    "text": "RMSE\n\nlm_preds &lt;- predict(lm_fit, mavo_clean) %&gt;% bind_cols(mavo_clean)\nlasso_preds &lt;- predict(lasso_fit, mavo_clean) %&gt;% bind_cols(mavo_clean)\nrf_preds &lt;- predict(rf_fit, mavo_clean) %&gt;% bind_cols(mavo_clean)\n\n# RMSE\nlm_rmse &lt;- rmse(lm_preds, truth = Y, estimate = .pred)\nlasso_rmse &lt;- rmse(lasso_preds, truth = Y, estimate = .pred)\nrf_rmse &lt;- rmse(rf_preds, truth = Y, estimate = .pred)\n\nlm_rmse\n\n# A tibble: 1 × 3\n  .metric .estimator .estimate\n  &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;\n1 rmse    standard        572.\n\nlasso_rmse\n\n# A tibble: 1 × 3\n  .metric .estimator .estimate\n  &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;\n1 rmse    standard        572.\n\nrf_rmse\n\n# A tibble: 1 × 3\n  .metric .estimator .estimate\n  &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;\n1 rmse    standard        362."
+  },
+  {
+    "objectID": "ml-models-exercise/ml-models-exercise.html#observed-vs-predicted",
+    "href": "ml-models-exercise/ml-models-exercise.html#observed-vs-predicted",
+    "title": "Module 11 Exercise",
+    "section": "Observed vs predicted",
+    "text": "Observed vs predicted\n\nplot_obs_pred &lt;- function(df, model_name) {\n  ggplot(df, aes(x = Y, y = .pred)) +\n    geom_point(alpha = 0.5) +\n    geom_abline(slope = 1, intercept = 0, color = \"red\") +\n    labs(title = paste(model_name, \"Observed vs Predicted\"),\n         x = \"Observed Y\", y = \"Predicted Y\") +\n    theme_minimal()\n}\n\nplot_obs_pred(lm_preds, \"Linear Model\")\n\n\n\n\n\n\n\nplot_obs_pred(lasso_preds, \"LASSO\")\n\n\n\n\n\n\n\nplot_obs_pred(rf_preds, \"Random Forest\")\n\n\n\n\n\n\n\n\nWhy are the linear model and the LASSO model so similar? The linear model and LASSO give similar RMSE because the LASSO penalty is small (0.1) so it’s not shrinking coefficients much."
+  },
+  {
+    "objectID": "ml-models-exercise/ml-models-exercise.html#lasso-grid",
+    "href": "ml-models-exercise/ml-models-exercise.html#lasso-grid",
+    "title": "Module 11 Exercise",
+    "section": "LASSO grid",
+    "text": "LASSO grid\nAI tools were used to help write the code for this section. I could not get the autoplot function to be compatible.\n\nlasso_spec_tune &lt;- linear_reg(penalty = tune(), mixture = 1) %&gt;%\n  set_engine(\"glmnet\")\n\nlasso_grid &lt;- tibble(penalty = 10^seq(-5, 2, length.out = 50))\n\nlasso_wf_tune &lt;- create_wf(lasso_spec_tune)\n\n# Use apparent() to create a resample object from the full data\nlasso_resample &lt;- apparent(mavo_clean)\n\n# Tune LASSO\nlasso_tune_res &lt;- tune_grid(\n  lasso_wf_tune,\n  resamples = lasso_resample,\n  grid = lasso_grid\n)\n\nlasso_tune_res %&gt;%\n  collect_metrics(summarize = FALSE) %&gt;%\n  filter(.metric == \"rmse\") %&gt;%\n  ggplot(aes(x = penalty, y = .estimate)) +\n  geom_line() +\n  geom_point() +\n  scale_x_log10() +\n  labs(\n    title = \"LASSO Tuning: RMSE vs Penalty\",\n    x = \"Penalty (log scale)\",\n    y = \"RMSE\"\n  ) +\n  theme_minimal()\n\n\n\n\n\n\n\n\nExplain why you see this behavior. What are you doing here, what happens as the penalty parameter goes up? Why does the RMSE only increase and does not go lower than the value found from the linear model or the un-tuned model above?\nWhen tuning the LASSO model, we see that the RMSE is lowest for very small penalty values and increases as the penalty parameter grows. This happens because a low penalty means the LASSO coefficients are barely shrunk, so the model behaves almost exactly like an ordinary linear regression and fits the data as well as the linear model. As the penalty increases, the LASSO starts shrinking coefficients toward zero, simplifying the model and causing it to underfit the data. As a result, the RMSE rises. The RMSE never drops below the value of the linear model because the linear regression already provides the best possible fit to the data in terms of minimizing squared error. LASSO can only reduce the magnitude of coefficients, which can help with generalization on new data but does not improve the fit on the training data itself."
+  },
+  {
+    "objectID": "ml-models-exercise/ml-models-exercise.html#random-forest",
+    "href": "ml-models-exercise/ml-models-exercise.html#random-forest",
+    "title": "Module 11 Exercise",
+    "section": "Random Forest",
+    "text": "Random Forest\n\n# Define RF tuning spec (fix trees = 300, tune mtry and min_n)\nrf_spec_tune &lt;- rand_forest(\n  trees = 300,\n  mtry = tune(),\n  min_n = tune()\n) %&gt;%\n  set_engine(\"ranger\", seed = 1234) %&gt;%\n  set_mode(\"regression\")\n\n# Define tuning grid: mtry 1-7, min_n 1-21, 7 levels each\nrf_grid &lt;- grid_regular(\n  mtry(range = c(1, 7)),\n  min_n(range = c(1, 21)),\n  levels = 7\n)\n\n# Create workflow\nrf_wf_tune &lt;- create_wf(rf_spec_tune)\n\n# Use apparent() as resamples\nrf_resample &lt;- apparent(mavo_clean)\n\n# Tune RF\nrf_tune_res &lt;- tune_grid(\n  rf_wf_tune,\n  resamples = rf_resample,\n  grid = rf_grid\n)\n\nrf_tune_res %&gt;%\n  collect_metrics(summarize = FALSE) %&gt;%\n  filter(.metric == \"rmse\") %&gt;%\n  ggplot(aes(x = mtry, y = .estimate, color = factor(min_n), group = factor(min_n))) +\n  geom_line() +\n  geom_point() +\n  labs(\n    title = \"RF Tuning: RMSE vs mtry and min_n\",\n    x = \"mtry\",\n    y = \"RMSE\",\n    color = \"min_n\"\n  ) +\n  theme_minimal()"
+  },
+  {
+    "objectID": "ml-models-exercise/ml-models-exercise.html#lasso-tuning-with-cv",
+    "href": "ml-models-exercise/ml-models-exercise.html#lasso-tuning-with-cv",
+    "title": "Module 11 Exercise",
+    "section": "LASSO Tuning with CV",
+    "text": "LASSO Tuning with CV\n\nlasso_tune_cv &lt;- tune_grid(\n  lasso_wf_tune,\n  resamples = cv_folds,\n  grid = lasso_grid\n)\n\nlasso_tune_cv %&gt;% autoplot()"
+  },
+  {
+    "objectID": "ml-models-exercise/ml-models-exercise.html#random-forest-tuning-with-cv",
+    "href": "ml-models-exercise/ml-models-exercise.html#random-forest-tuning-with-cv",
+    "title": "Module 11 Exercise",
+    "section": "Random Forest Tuning with CV",
+    "text": "Random Forest Tuning with CV\n\nrf_tune_cv &lt;- tune_grid(\n  rf_wf_tune,\n  resamples = cv_folds,\n  grid = rf_grid\n)\n\nrf_tune_cv %&gt;% autoplot()\n\n\n\n\n\n\n\n\nCompare what you see for the RMSE here with the results above when we didn’t use CV to evaluate our model. You should find that the LASSO still does best for a small penalty, the RMSE for both models went up, and the LASSO now has lower RMSE compared to the RF. Explain why you are seeing what you do.\nRMSE went up for both models. When we used apparent(), we evaluated on the same data we trained on, which artificially deflates RMSE. CV holds out data the model never trained on, giving an honest estimate of out-of-sample performance. Higher RMSE with CV is more expected.\nLASSO still does best at low penalty.Higher penalties shrink coefficients too much,which hurts predictive performance. But now the RMSE curve is noisier because it reflects genuine generalization error rather than training error.\nLASSO has a lower RMSE than RF. With apparent(), the RF could overfit the training data perfectly, giving artificially low RMSE. With CV, overfitting is penalized. The RF’s complexity doesn’t help and may hurt on unseen folds. The LASSO’s simplicity generalizes better on this dataset.\nThe LASSO with a small penalty performs best based on CV RMSE. Since a very small LASSO penalty produces essentially the same result as the linear model, the linear model and best LASSO are effectively equivalent."
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "My website and data analysis portfolio",
+    "section": "",
+    "text": "Hello\n\nAnd hello again\nWelcome to my website and data analysis portfolio.\n\nPlease use the Menu Bar above to look around.\nHave fun!"
   }
 ]
