@@ -1,0 +1,304 @@
+
+# Load Tidy Tuesday Data
+Global Health Spending Dataset
+
+The data is organised into three datasets:
+
+health_spending — Aggregate health spending and its breakdown by funding source (domestic government, domestic private, and external aid).
+financing_schemes — Health spending by financing scheme (e.g. government schemes, voluntary insurance, out-of-pocket payments).
+spending_purpose — Health spending by health care function (e.g. curative care, preventive care, medical goods).
+
+
+# Research Question
+
+Can we predict out-of-pocket health spending (hf3) in different countries using other health financing mechanisms?
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(skimr)
+```
+```{r}
+financing_schemes <- readr::read_csv(
+  "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-04-21/financing_schemes.csv"
+)
+
+health_spending <- readr::read_csv(
+  "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-04-21/health_spending.csv"
+)
+
+spending_purpose <- readr::read_csv(
+  "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-04-21/spending_purpose.csv"
+)
+
+# Clean names
+financing_schemes <- clean_names(financing_schemes)
+health_spending   <- clean_names(health_spending)
+spending_purpose  <- clean_names(spending_purpose)
+```
+
+```{r}
+colSums(is.na(financing_schemes))
+```
+
+# Data Cleaning
+
+```{r}
+financing_usd <- financing_schemes %>%
+  filter(unit == "constant 2023 US$") %>%
+  select(country_name, iso3_code, year, indicator_code, value) %>%
+  pivot_wider(names_from = indicator_code, values_from = value)
+
+data_clean <- financing_usd %>%
+  drop_na()
+```
+
+# EDA
+## Distribution of Out-of-Pocket Spending
+
+```{r}
+ggplot(data_clean, aes(x = hf3_usd2023)) +
+  geom_histogram(bins = 40) +
+  scale_x_log10() +
+  labs(
+    title = "Distribution of Out-of-Pocket Health Spending",
+    x = "Out-of-Pocket Spending (log scale)",
+    y = "Count"
+  )
+```
+
+The distribution of out-of-pocket health spending remains highly dispersed even after log transformation. Rather than forming a single symmetric distribution, the data appear to exhibit multiple clusters, suggesting the presence of distinct groups of countries with different healthcare financing structures. This likely reflects differences in income levels, insurance coverage, and health system design. The persistence of heterogeneity after transformation indicates that variation in out-of-pocket spending is not solely due to scale effects, but also structural differences across countries.
+
+## Trends Over Time
+
+```{r}
+ggplot(data_clean, aes(x = year, y = hf3_usd2023)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  scale_y_log10() +
+  labs(
+    title = "Out-of-Pocket Spending Over Time",
+    y = "OOP Spending (log scale)"
+  )
+```
+
+Out-of-pocket spending shows a general upward trend over time, although there is substantial variability between countries. This suggests that while global healthcare spending is increasing, the burden on individuals has not decreased uniformly across countries.
+
+
+## Relationship with Government Financing (hf1)
+
+```{r}
+ggplot(data_clean, aes(x = hf1_usd2023, y = hf3_usd2023)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(
+    title = "Government Financing vs Out-of-Pocket Spending",
+    x = "Government Financing (hf1)",
+    y = "OOP Spending (hf3)"
+  )
+```
+
+The plot shows a strong positive association between government financing and out-of-pocket spending when measured in total absolute terms. However, this relationship is likely influenced by country size and overall health system scale, as both variables are expressed in aggregate dollars. While a proportional relationship is visible on log-log scales, substantial variation remains, suggesting that structural and policy differences between countries also play an important role.
+
+## Relationship with Voluntary Financing (hf2)
+
+```{r}
+ggplot(data_clean, aes(x = hf2_usd2023, y = hf3_usd2023)) +
+  geom_point(alpha = 0.5) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(
+    title = "Voluntary Financing vs OOP Spending"
+  )
+```
+Voluntary financing appears to have a weaker and more variable relationship with out-of-pocket spending compared to government financing. This suggests that voluntary insurance systems may not consistently reduce individual financial burden across countries.
+
+
+## Top Countries by Out-of-Pocket Spending
+
+```{r}
+data_clean %>%
+  group_by(country_name) %>%
+  summarize(avg_oop = mean(hf3_usd2023, na.rm = TRUE)) %>%
+  arrange(desc(avg_oop)) %>%
+  slice_head(n = 10) %>%
+  ggplot(aes(x = reorder(country_name, avg_oop), y = avg_oop)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_log10() +
+  labs(
+    title = "Top 10 Countries by Out-of-Pocket Spending",
+    x = "Country",
+    y = "Average OOP Spending (log scale)"
+  )
+```
+
+The top countries by average out-of-pocket spending highlight significant global disparities. A small number of countries account for disproportionately high spending levels, reinforcing the skewed nature of the dataset and suggesting potential structural differences in healthcare systems.
+
+
+## Relationship Between Government Spending and OOP
+
+```{r}
+ggplot(data_clean, aes(x = hf1_usd2023, y = hf3_usd2023)) +
+  geom_point(alpha = 0.5) +
+  scale_y_log10() +
+  labs(title = "Government Financing vs Out-of-Pocket Spending")
+```
+
+## Correlation Matrix
+
+```{r}
+data_clean %>%
+  select(where(is.numeric)) %>%
+  cor() %>%
+  round(2)
+```
+
+# Model Setup
+## Train/Test Split
+
+```{r}
+set.seed(123)
+
+split <- initial_split(data_clean, prop = 0.8)
+train_data <- training(split)
+test_data  <- testing(split)
+```
+
+## Preprocessing Recipe
+
+* Remove identifiers
+* Log-transform the outcome (to handle skewness)
+* Normalize predictors
+
+```{r}
+rec <- recipe(hf3_usd2023 ~ ., data = train_data) %>%
+  step_rm(country_name, iso3_code) %>%
+  step_normalize(all_predictors())
+```
+
+## Cross-Validation
+
+```{r}
+set.seed(123)
+folds <- vfold_cv(train_data, v = 5)
+```
+
+# Models
+## Linear Regression
+```{r}
+lm_model <- linear_reg() %>%
+  set_engine("lm")
+
+lm_wf <- workflow() %>%
+  add_model(lm_model) %>%
+  add_recipe(rec)
+
+lm_res <- fit_resamples(
+  lm_wf,
+  resamples = folds,
+  metrics = metric_set(rmse, rsq)
+)
+
+collect_metrics(lm_res)
+```
+
+## Random Forest
+
+```{r}
+rf_model <- rand_forest(trees = 500, mtry = 3) %>%
+  set_engine("ranger") %>%
+  set_mode("regression")
+
+rf_wf <- workflow() %>%
+  add_model(rf_model) %>%
+  add_recipe(rec)
+
+rf_res <- fit_resamples(
+  rf_wf,
+  resamples = folds,
+  metrics = metric_set(rmse, rsq)
+)
+
+collect_metrics(rf_res)
+```
+
+## KNN
+
+```{r}
+knn_model <- nearest_neighbor(neighbors = 5) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+knn_wf <- workflow() %>%
+  add_model(knn_model) %>%
+  add_recipe(rec)
+
+knn_res <- fit_resamples(
+  knn_wf,
+  resamples = folds,
+  metrics = metric_set(rmse, rsq)
+)
+
+collect_metrics(knn_res)
+```
+
+## Model Comparison
+
+```{r}
+bind_rows(
+  collect_metrics(lm_res) %>% mutate(model = "Linear"),
+  collect_metrics(rf_res) %>% mutate(model = "Random Forest"),
+  collect_metrics(knn_res) %>% mutate(model = "KNN")
+)
+```
+
+## Model Selection
+
+All models show strong predictive performance with R² values above 0.95, indicating that financing structures explain a large proportion of variation in out-of-pocket spending. However, the Random Forest model consistently performs best, suggesting that nonlinear interactions between variables improve predictive accuracy.
+
+```{r}
+final_model <- rf_wf %>%
+  fit(train_data)
+```
+
+## Test Set Evaluation
+
+```{r}
+preds <- predict(final_model, test_data) %>%
+  bind_cols(test_data)
+
+metrics(preds, truth = hf3_usd2023, estimate = .pred)
+```
+
+The model performs strongly on unseen test data, confirming that financing mechanisms are highly predictive of out-of-pocket spending. However, the performance gap between models is relatively small, suggesting that much of the signal in the data is linear and structurally determined, with only moderate nonlinear effects.
+
+
+# Analysis
+
+```{r}
+ggplot(preds, aes(x = .pred, y = hf3_usd2023 - .pred)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Residual Plot")
+```
+
+The residual plot shows no strong systematic pattern, suggesting that the Random Forest model captures most of the structure in the data. However, some spread in residuals at higher predicted values indicates that extreme out-of-pocket spending may be less well captured, likely due to country-specific factors not included in the model.
+
+# Final Visual
+
+```{r}
+ggplot(preds, aes(x = hf3_usd2023, y = .pred)) +
+  geom_point() +
+  geom_abline(linetype = "dashed") +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title = "Predicted vs Actual Out-of-Pocket Spending")
+```
+
+This analysis demonstrates that healthcare financing structures are strongly associated with out-of-pocket health spending across countries. Government financing appears to reduce individual financial burden, while voluntary and mixed financing systems show more variability.
+
+Machine learning models confirm that these relationships are highly predictive, with Random Forest performing best due to its ability to capture nonlinear interactions. However, the relatively small performance differences between models suggest that the underlying structure of the data is partially linear and strongly constrained by economic system design.

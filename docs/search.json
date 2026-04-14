@@ -285,5 +285,124 @@
     "title": "My website and data analysis portfolio",
     "section": "",
     "text": "Hello\n\nAnd hello again\nWelcome to my website and data analysis portfolio.\n\nPlease use the Menu Bar above to look around.\nHave fun!"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html",
+    "title": "Load Tidy Tuesday Data",
+    "section": "",
+    "text": "Global Health Spending Dataset\nThe data is organised into three datasets:\nhealth_spending — Aggregate health spending and its breakdown by funding source (domestic government, domestic private, and external aid). financing_schemes — Health spending by financing scheme (e.g. government schemes, voluntary insurance, out-of-pocket payments). spending_purpose — Health spending by health care function (e.g. curative care, preventive care, medical goods)."
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#traintest-split",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#traintest-split",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Train/Test Split",
+    "text": "Train/Test Split\n\nset.seed(123)\n\nsplit &lt;- initial_split(data_clean, prop = 0.8)\ntrain_data &lt;- training(split)\ntest_data  &lt;- testing(split)"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#preprocessing-recipe",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#preprocessing-recipe",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Preprocessing Recipe",
+    "text": "Preprocessing Recipe\n\nRemove identifiers\nLog-transform the outcome (to handle skewness)\nNormalize predictors\n\n\nrec &lt;- recipe(hf3_usd2023 ~ ., data = train_data) %&gt;%\n  step_rm(country_name, iso3_code) %&gt;%\n  step_normalize(all_predictors())"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#cross-validation",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#cross-validation",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Cross-Validation",
+    "text": "Cross-Validation\n\nset.seed(123)\nfolds &lt;- vfold_cv(train_data, v = 5)"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#linear-regression",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#linear-regression",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Linear Regression",
+    "text": "Linear Regression\n\nlm_model &lt;- linear_reg() %&gt;%\n  set_engine(\"lm\")\n\nlm_wf &lt;- workflow() %&gt;%\n  add_model(lm_model) %&gt;%\n  add_recipe(rec)\n\nlm_res &lt;- fit_resamples(\n  lm_wf,\n  resamples = folds,\n  metrics = metric_set(rmse, rsq)\n)\n\ncollect_metrics(lm_res)\n\n# A tibble: 2 × 6\n  .metric .estimator     mean     n std_err .config        \n  &lt;chr&gt;   &lt;chr&gt;         &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;          \n1 rmse    standard   1.49e+10     5 4.15e+9 pre0_mod0_post0\n2 rsq     standard   9.52e- 1     5 1.43e-2 pre0_mod0_post0"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#random-forest",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#random-forest",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Random Forest",
+    "text": "Random Forest\n\nrf_model &lt;- rand_forest(trees = 500, mtry = 3) %&gt;%\n  set_engine(\"ranger\") %&gt;%\n  set_mode(\"regression\")\n\nrf_wf &lt;- workflow() %&gt;%\n  add_model(rf_model) %&gt;%\n  add_recipe(rec)\n\nrf_res &lt;- fit_resamples(\n  rf_wf,\n  resamples = folds,\n  metrics = metric_set(rmse, rsq)\n)\n\ncollect_metrics(rf_res)\n\n# A tibble: 2 × 6\n  .metric .estimator    mean     n std_err .config        \n  &lt;chr&gt;   &lt;chr&gt;        &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;          \n1 rmse    standard   9.75e+9     5 2.71e+9 pre0_mod0_post0\n2 rsq     standard   9.70e-1     5 1.57e-2 pre0_mod0_post0"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#knn",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#knn",
+    "title": "Load Tidy Tuesday Data",
+    "section": "KNN",
+    "text": "KNN\n\nknn_model &lt;- nearest_neighbor(neighbors = 5) %&gt;%\n  set_engine(\"kknn\") %&gt;%\n  set_mode(\"regression\")\n\nknn_wf &lt;- workflow() %&gt;%\n  add_model(knn_model) %&gt;%\n  add_recipe(rec)\n\nknn_res &lt;- fit_resamples(\n  knn_wf,\n  resamples = folds,\n  metrics = metric_set(rmse, rsq)\n)\n\n→ A | warning: package 'kknn' was built under R version 4.4.3\n\n\nThere were issues with some computations   A: x1\nThere were issues with some computations   A: x1\n\n\n\n\ncollect_metrics(knn_res)\n\n# A tibble: 2 × 6\n  .metric .estimator     mean     n std_err .config        \n  &lt;chr&gt;   &lt;chr&gt;         &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;          \n1 rmse    standard   1.11e+10     5 2.45e+9 pre0_mod0_post0\n2 rsq     standard   9.63e- 1     5 1.88e-2 pre0_mod0_post0"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#model-comparison",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#model-comparison",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Model Comparison",
+    "text": "Model Comparison\n\nbind_rows(\n  collect_metrics(lm_res) %&gt;% mutate(model = \"Linear\"),\n  collect_metrics(rf_res) %&gt;% mutate(model = \"Random Forest\"),\n  collect_metrics(knn_res) %&gt;% mutate(model = \"KNN\")\n)\n\n# A tibble: 6 × 7\n  .metric .estimator     mean     n std_err .config         model        \n  &lt;chr&gt;   &lt;chr&gt;         &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;           &lt;chr&gt;        \n1 rmse    standard   1.49e+10     5 4.15e+9 pre0_mod0_post0 Linear       \n2 rsq     standard   9.52e- 1     5 1.43e-2 pre0_mod0_post0 Linear       \n3 rmse    standard   9.75e+ 9     5 2.71e+9 pre0_mod0_post0 Random Forest\n4 rsq     standard   9.70e- 1     5 1.57e-2 pre0_mod0_post0 Random Forest\n5 rmse    standard   1.11e+10     5 2.45e+9 pre0_mod0_post0 KNN          \n6 rsq     standard   9.63e- 1     5 1.88e-2 pre0_mod0_post0 KNN"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#model-selection",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#model-selection",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Model Selection",
+    "text": "Model Selection\nAll models show strong predictive performance with R² values above 0.95, indicating that financing structures explain a large proportion of variation in out-of-pocket spending. However, the Random Forest model consistently performs best, suggesting that nonlinear interactions between variables improve predictive accuracy.\n\nfinal_model &lt;- rf_wf %&gt;%\n  fit(train_data)"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#test-set-evaluation",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#test-set-evaluation",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Test Set Evaluation",
+    "text": "Test Set Evaluation\n\npreds &lt;- predict(final_model, test_data) %&gt;%\n  bind_cols(test_data)\n\nmetrics(preds, truth = hf3_usd2023, estimate = .pred)\n\n# A tibble: 3 × 3\n  .metric .estimator .estimate\n  &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;\n1 rmse    standard     6.55e+9\n2 rsq     standard     9.95e-1\n3 mae     standard     2.86e+9\n\n\nThe model performs strongly on unseen test data, confirming that financing mechanisms are highly predictive of out-of-pocket spending. However, the performance gap between models is relatively small, suggesting that much of the signal in the data is linear and structurally determined, with only moderate nonlinear effects."
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#distribution-of-out-of-pocket-spending",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#distribution-of-out-of-pocket-spending",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Distribution of Out-of-Pocket Spending",
+    "text": "Distribution of Out-of-Pocket Spending\n\nggplot(data_clean, aes(x = hf3_usd2023)) +\n  geom_histogram(bins = 40) +\n  scale_x_log10() +\n  labs(\n    title = \"Distribution of Out-of-Pocket Health Spending\",\n    x = \"Out-of-Pocket Spending (log scale)\",\n    y = \"Count\"\n  )\n\n\n\n\n\n\n\n\nThe distribution of out-of-pocket health spending remains highly dispersed even after log transformation. Rather than forming a single symmetric distribution, the data appear to exhibit multiple clusters, suggesting the presence of distinct groups of countries with different healthcare financing structures. This likely reflects differences in income levels, insurance coverage, and health system design. The persistence of heterogeneity after transformation indicates that variation in out-of-pocket spending is not solely due to scale effects, but also structural differences across countries."
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#trends-over-time",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#trends-over-time",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Trends Over Time",
+    "text": "Trends Over Time\n\nggplot(data_clean, aes(x = year, y = hf3_usd2023)) +\n  geom_point(alpha = 0.3) +\n  geom_smooth(se = FALSE) +\n  scale_y_log10() +\n  labs(\n    title = \"Out-of-Pocket Spending Over Time\",\n    y = \"OOP Spending (log scale)\"\n  )\n\n`geom_smooth()` using method = 'loess' and formula = 'y ~ x'\n\n\n\n\n\n\n\n\n\nOut-of-pocket spending shows a general upward trend over time, although there is substantial variability between countries. This suggests that while global healthcare spending is increasing, the burden on individuals has not decreased uniformly across countries."
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#relationship-with-government-financing-hf1",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#relationship-with-government-financing-hf1",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Relationship with Government Financing (hf1)",
+    "text": "Relationship with Government Financing (hf1)\n\nggplot(data_clean, aes(x = hf1_usd2023, y = hf3_usd2023)) +\n  geom_point(alpha = 0.5) +\n  geom_smooth(method = \"lm\", se = FALSE, color = \"red\") +\n  scale_x_log10() +\n  scale_y_log10() +\n  labs(\n    title = \"Government Financing vs Out-of-Pocket Spending\",\n    x = \"Government Financing (hf1)\",\n    y = \"OOP Spending (hf3)\"\n  )\n\n`geom_smooth()` using formula = 'y ~ x'\n\n\n\n\n\n\n\n\n\nThe plot shows a strong positive association between government financing and out-of-pocket spending when measured in total absolute terms. However, this relationship is likely influenced by country size and overall health system scale, as both variables are expressed in aggregate dollars. While a proportional relationship is visible on log-log scales, substantial variation remains, suggesting that structural and policy differences between countries also play an important role."
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#relationship-with-voluntary-financing-hf2",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#relationship-with-voluntary-financing-hf2",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Relationship with Voluntary Financing (hf2)",
+    "text": "Relationship with Voluntary Financing (hf2)\n\nggplot(data_clean, aes(x = hf2_usd2023, y = hf3_usd2023)) +\n  geom_point(alpha = 0.5) +\n  scale_x_log10() +\n  scale_y_log10() +\n  labs(\n    title = \"Voluntary Financing vs OOP Spending\"\n  )\n\n\n\n\n\n\n\n\nVoluntary financing appears to have a weaker and more variable relationship with out-of-pocket spending compared to government financing. This suggests that voluntary insurance systems may not consistently reduce individual financial burden across countries."
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#top-countries-by-out-of-pocket-spending",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#top-countries-by-out-of-pocket-spending",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Top Countries by Out-of-Pocket Spending",
+    "text": "Top Countries by Out-of-Pocket Spending\n\ndata_clean %&gt;%\n  group_by(country_name) %&gt;%\n  summarize(avg_oop = mean(hf3_usd2023, na.rm = TRUE)) %&gt;%\n  arrange(desc(avg_oop)) %&gt;%\n  slice_head(n = 10) %&gt;%\n  ggplot(aes(x = reorder(country_name, avg_oop), y = avg_oop)) +\n  geom_col() +\n  coord_flip() +\n  scale_y_log10() +\n  labs(\n    title = \"Top 10 Countries by Out-of-Pocket Spending\",\n    x = \"Country\",\n    y = \"Average OOP Spending (log scale)\"\n  )\n\n\n\n\n\n\n\n\nThe top countries by average out-of-pocket spending highlight significant global disparities. A small number of countries account for disproportionately high spending levels, reinforcing the skewed nature of the dataset and suggesting potential structural differences in healthcare systems."
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#relationship-between-government-spending-and-oop",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#relationship-between-government-spending-and-oop",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Relationship Between Government Spending and OOP",
+    "text": "Relationship Between Government Spending and OOP\n\nggplot(data_clean, aes(x = hf1_usd2023, y = hf3_usd2023)) +\n  geom_point(alpha = 0.5) +\n  scale_y_log10() +\n  labs(title = \"Government Financing vs Out-of-Pocket Spending\")"
+  },
+  {
+    "objectID": "tidytuesday-exercise/tidytuesday-exercise.html#correlation-matrix",
+    "href": "tidytuesday-exercise/tidytuesday-exercise.html#correlation-matrix",
+    "title": "Load Tidy Tuesday Data",
+    "section": "Correlation Matrix",
+    "text": "Correlation Matrix\n\ndata_clean %&gt;%\n  select(where(is.numeric)) %&gt;%\n  cor() %&gt;%\n  round(2)\n\n               year hf1_usd2023 hf2_usd2023 hf3_usd2023 hfnec_usd2023\nyear           1.00        0.04       -0.12       -0.01          0.09\nhf1_usd2023    0.04        1.00        0.56        0.92         -0.02\nhf2_usd2023   -0.12        0.56        1.00        0.79          0.00\nhf3_usd2023   -0.01        0.92        0.79        1.00          0.01\nhfnec_usd2023  0.09       -0.02        0.00        0.01          1.00\nhf4_usd2023    0.04       -0.06       -0.04       -0.06         -0.03\n              hf4_usd2023\nyear                 0.04\nhf1_usd2023         -0.06\nhf2_usd2023         -0.04\nhf3_usd2023         -0.06\nhfnec_usd2023       -0.03\nhf4_usd2023          1.00"
   }
 ]
